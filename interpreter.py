@@ -90,7 +90,37 @@ class Number:
     def powered_by(self, num):
         if isinstance(num, Number):
             return Number(self.value ** num.value).set_context(self.context), None
+
+    def compare_equals(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value == num.value)).set_context(self.context), None
+    def compare_not_equals(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value != num.value)).set_context(self.context), None
+    def compare_lt(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value < num.value)).set_context(self.context), None
+    def compare_gt(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value > num.value)).set_context(self.context), None
+    def compare_lte(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value <= num.value)).set_context(self.context), None
+    def compare_gte(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value >= num.value)).set_context(self.context), None
+
+    def and_to(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value and num.value)).set_context(self.context), None
+    def or_to(self, num):
+        if isinstance(num, Number):
+            return Number(int(self.value or num.value)).set_context(self.context), None
+
+    def notted(self, num):
+        return Number(1 if self.value == 0 else 0).set_context(self.context), None
     
+
     def __repr__(self):
         return str(self.value)
 
@@ -130,6 +160,26 @@ class Interpreter:
 
         elif node.operator.type == Constants.TOK_POW:
             result, error = left.powered_by(right)
+        
+
+        # COMPARISIONS
+        elif node.operator.type == Constants.TOK_EE:
+            result, error = left.compare_equals(right)
+        elif node.operator.type == Constants.TOK_NE:
+            result, error = left.compare_not_equals(right)
+        elif node.operator.type == Constants.TOK_LT:
+            result, error = left.compare_lt(right)
+        elif node.operator.type == Constants.TOK_GT:
+            result, error = left.compare_gt(right)
+        elif node.operator.type == Constants.TOK_LTE:
+            result, error = left.compare_lte(right)
+        elif node.operator.type == Constants.TOK_GTE:
+            result, error = left.compare_gte(right)
+        elif node.operator.matches(Constants.TOK_KEYWORD, 'and'):
+            result, error = left.and_to(right)
+        elif node.operator.matches(Constants.TOK_KEYWORD, 'or'):
+            result, error = left.or_to(right)
+        
 
         if error:
             return rtresult.failure(error)
@@ -143,6 +193,9 @@ class Interpreter:
 
         if node.operator.type == Constants.TOK_MINUS:
             num, error= num.multiplied_by(Number(-1))
+        elif node.operator.matches(Constants.TOK_KEYWORD, 'not'):
+            num, error = num.notted()
+            
         if error:
             return rtresult.failure(error)
         else:   

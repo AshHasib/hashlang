@@ -1,6 +1,5 @@
-from errors import Error, IllegalCharError
+from errors import Error, IllegalCharError, ExpectedCharError
 from constants import Constants
-
 
 class Token:
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
@@ -24,6 +23,7 @@ class Token:
             return f'{self.type}'
 
 
+
 class Position:
     def __init__(self, idx, ln, col,fname, ftext):
         self.idx = idx
@@ -38,10 +38,8 @@ class Position:
         if current_char == '\n':
             self.ln += 1
             self.col = 0
-
         return self
     
-
     def copy(self):
         return Position (self.idx, self.ln, self.col, self.fname, self.ftext)
 
@@ -89,9 +87,18 @@ class Lexer:
             elif self.current_char == '^':
                 tokens.append(Token(Constants.TOK_POW, pos_start=self.pos))
                 self.advance()
+            elif self.current_char == '!':
+                tok, error = self.gen_not_equals()
+                if error:
+                    return [], error
+                tokens.append(tok)
             elif self.current_char == '=':
-                tokens.append(Token(Constants.TOK_EQUALS, pos_start=self.pos))
-                self.advance()
+                tokens.append(self.gen_equals())
+            elif self.current_char == '<':
+                tokens.append(self.gen_less_than())
+            elif self.current_char == '>':
+                tokens.append(self.gen_greater_than())
+                
             elif self.current_char == '(':
                 tokens.append(Token(Constants.TOK_LPAREN, pos_start=self.pos))
                 self.advance()
@@ -147,5 +154,49 @@ class Lexer:
 
 
 
+    def gen_not_equals(self):
+        pos_start=self.pos.copy()
+        self.advance()
 
+        if self.current_char == '=':
+            self.advance()
+            return Token(Constants.TOK_EQUALS, pos_start=pos_start, pos_end=self.pos), None
+        
+        self.advance()
+        return None, ExpectedCharError(pos_start, self.pos,'Expected \'=\' after \'!\'')
 
+    def gen_equals(self):
+        tok_type = Constants.TOK_EQUALS
+
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            tok_type = Constants.TOK_EE
+
+        return Token(tok_type, pos_start, self.pos)
+
+    def gen_less_than(self):
+        tok_type = Constants.TOK_LT
+
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            tok_type = Constants.TOK_GTE
+
+        return Token(tok_type, pos_start, self.pos)
+
+    def gen_greater_than(self):
+        tok_type = Constants.TOK_GT
+
+        pos_start = self.pos.copy()
+        self.advance()
+
+        if self.current_char == '=':
+            self.advance()
+            tok_type = Constants.TOK_GTE
+
+        return Token(tok_type, pos_start, self.pos)

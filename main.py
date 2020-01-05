@@ -4,6 +4,8 @@ from interpreter import Context, Interpreter, SymbolTable, Number
 
 global_symbol_table = SymbolTable()
 global_symbol_table.set('null', Number(0))
+global_symbol_table.set('true', Number(1))
+global_symbol_table.set('false', Number(0))
 
 def run(fname, text):
     lexer = Lexer(fname, text)
@@ -25,13 +27,9 @@ def run(fname, text):
     return result.value, result.error
 
 
-
-
-
-
 def main():
     while True:
-        text = input('hash /> ')
+        text = input('hash/> ')
         result, error = run('<stdin>',text)
 
         if error:

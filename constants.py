@@ -1,4 +1,5 @@
 import string
+
 class Constants:
     TOK_INT='INT'
     TOK_FLOAT='FLOAT'
@@ -9,6 +10,13 @@ class Constants:
     TOK_LPAREN='LPAREN'
     TOK_RPAREN='RPAREN'
     TOK_EOF='EOF'
+
+    TOK_EE='EE'
+    TOK_NE='NE'
+    TOK_GT='GT'
+    TOK_LT='LT'
+    TOK_GTE='GTE'
+    TOK_LTE='LTE'
 
     DIGITS = '0123456789'
     LETTERS=string.ascii_letters
@@ -21,4 +29,8 @@ class Constants:
 
     LIST_KEYWORDS = [
         'var',
+        'and',
+        'or', 
+        'not',
+
     ]

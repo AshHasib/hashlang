@@ -204,7 +204,7 @@ class Parser:
                 return res
             return res.success(VarAssignNode(var_name, expr))
 
-        node = res.register(self.binary_operation(self.term, (Constants.TOK_PLUS, Constants.TOK_MINUS)))
+        node = res.register(self.binary_operation(self.comp_expr, ((Constants.TOK_KEYWORD, 'and'), (Constants.TOK_KEYWORD, 'or'))))
 
         if res.error:
             return res.failure(InvalidSyntaxError(
@@ -213,6 +213,33 @@ class Parser:
             ))
 
         return res.success(node)
+
+    def comp_expr(self):
+        res = ParseResult()
+        if self.current_tok.matches(Constants.TOK_KEYWORD, 'not'):
+            operator = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            node = res.register(self.comp_expr())
+
+            if res.error:
+                return res
+            return res.success(UnaryOperatorNode(operator, node))
+
+        node = res.register(self.binary_operation(self.arith_expr, (Constants.TOK_EE,Constants.TOK_NE, Constants.TOK_LT, Constants.TOK_GT, Constants.TOK_LTE, Constants.TOK_GTE)))
+
+        if res.error:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                'Expected int, float, identifier, operators'
+            ))
+
+        return res.success(node)
+
+
+    def arith_expr(self):
+        return self.binary_operation(self.term, (Constants.TOK_PLUS, Constants.TOK_MINUS))
 
     def binary_operation(self,func_a, ops, func_b=None):
         if func_b == None:
@@ -223,7 +250,7 @@ class Parser:
         if res.error:
             return res
 
-        while self.current_tok.type in ops:
+        while self.current_tok.type in ops or (self.current_tok.type, self.current_tok.value) in ops:
             operator = self.current_tok
             res.register_advancement()
             self.advance()

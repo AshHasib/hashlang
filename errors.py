@@ -18,6 +18,10 @@ class IllegalCharError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end,'Illegal Character', details='')
 
+class ExpectedCharError(Error):
+    def __init__(self, pos_start, pos_end, details):
+        super().__init__(pos_start, pos_end,'Expected Character', details='')
+
 
 class InvalidSyntaxError(Error):
     def __init__(self, pos_start, pos_end, details):
@@ -44,5 +48,4 @@ class RTError(Error):
             result = f'File {pos.fname}, line {str(pos.ln+1)}, in {ctx.display_name}\n'
             pos = ctx.parent_entry_pos
             ctx = ctx.parent
-
         return 'Error : \n'+result
