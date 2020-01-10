@@ -1,8 +1,6 @@
 from errors import InvalidSyntaxError
 from constants import Constants
 
-
-
 class NumberNode:
     def __init__(self, tok):
         self.tok = tok
@@ -31,8 +29,8 @@ class UnaryOperatorNode:
         self.operator = operator
         self.node = node
 
-        self.pos_start=self.operator.pos_start
-        self.pos_end=self.node.pos_end
+        self.pos_start= self.operator.pos_start
+        self.pos_end= self.node.pos_end
     
     def __repr__(self):
         return f'{self.operator}:{self.node}'
@@ -54,6 +52,16 @@ class VarAssignNode:
         self.pos_end = self.var_name_tok.pos_end
 
 
+
+class IfNode:
+    def __init__(self, cases, else_case):
+        self.cases = cases
+        self.else_case = else_case
+
+        self.pos_start = self.cases[0][0].pos_start
+        self.pos_end = (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
+
+     
 
 
 
@@ -146,6 +154,14 @@ class Parser:
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     'Expected \')\''
                 ))
+
+        
+        elif tok.matches(Constants.TOK_KEYWORD, 'if'):
+            if_expr = res.register(self.if_expr())
+            if res.error:
+                return res
+            return res.success(if_expr)
+
         return res.failure(InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
             'Expected int, float, +, -, * or /'
@@ -227,7 +243,14 @@ class Parser:
                 return res
             return res.success(UnaryOperatorNode(operator, node))
 
-        node = res.register(self.binary_operation(self.arith_expr, (Constants.TOK_EE,Constants.TOK_NE, Constants.TOK_LT, Constants.TOK_GT, Constants.TOK_LTE, Constants.TOK_GTE)))
+        node = res.register(self.binary_operation(
+            self.arith_expr,
+                (Constants.TOK_EE,
+                Constants.TOK_NE,
+                Constants.TOK_LT,
+                Constants.TOK_GT,
+                Constants.TOK_LTE,
+                Constants.TOK_GTE)))
 
         if res.error:
             return res.failure(InvalidSyntaxError(
@@ -260,3 +283,62 @@ class Parser:
             leftn = BinaryOperatorNode(leftn, operator, rightn)
         return res.success(leftn)
 
+
+    def if_expr(self):
+	    res = ParseResult()
+	    cases = []
+	    else_case = None
+
+	    if not self.current_tok.matches(Constants.TOK_KEYWORD, 'if'):
+	    	return res.failure(InvalidSyntaxError(
+				self.current_tok.pos_start, self.current_tok.pos_end,
+				f"Expected 'if'"
+			))
+
+	    res.register_advancement()
+	    self.advance()
+
+	    condition = res.register(self.expr())
+	    if res.error: return res
+
+	    if not self.current_tok.matches(Constants.TOK_KEYWORD, 'then'):
+        	return res.failure(InvalidSyntaxError(
+	    		self.current_tok.pos_start, self.current_tok.pos_end,
+	    		f"Expected 'then'"
+	    	))
+
+	    res.register_advancement()
+	    self.advance()
+
+	    expr = res.register(self.expr())
+	    if res.error: return res
+	    cases.append((condition, expr))
+
+	    while self.current_tok.matches(Constants.TOK_KEYWORD, 'elseif'):
+	    	res.register_advancement()
+	    	self.advance()
+
+	    	condition = res.register(self.expr())
+	    	if res.error: return res
+
+	    	if not self.current_tok.matches(Constants.TOK_KEYWORD, 'then'):
+	    		return res.failure(InvalidSyntaxError(
+	    			self.current_tok.pos_start, self.current_tok.pos_end,
+	    			f"Expected 'then'"
+	    		))
+
+	    	res.register_advancement()
+	    	self.advance()
+
+	    	expr = res.register(self.expr())
+	    	if res.error: return res
+	    	cases.append((condition, expr))
+
+	    if self.current_tok.matches(Constants.TOK_KEYWORD, 'else'):
+	    	res.register_advancement()
+	    	self.advance()
+
+	    	else_case = res.register(self.expr())
+	    	if res.error: return res
+
+	    return res.success(IfNode(cases, else_case))

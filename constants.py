@@ -32,5 +32,14 @@ class Constants:
         'and',
         'or', 
         'not',
+        'if',
+        'elseif',
+        'else',
+        'then',
+        'for',
+        'while',
+        'to',
+        'step',
+
 
     ]

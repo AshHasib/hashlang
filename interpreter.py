@@ -121,6 +121,9 @@ class Number:
         return Number(1 if self.value == 0 else 0).set_context(self.context), None
     
 
+    def is_true(self):
+        return self.value != 0
+
     def __repr__(self):
         return str(self.value)
 
@@ -226,3 +229,27 @@ class Interpreter:
             return res
         context.symbol_table.set(var_name, value)
         return res.success(value)
+
+
+    def visit_IfNode(self, node, context):
+        res = RuntimeResult()
+
+        for condition, expr in node.cases:
+            condition_value = res.register(self.visit(condition, context))
+            if res.error:
+                return res
+            if condition_value.is_true():
+                expr_value = res.register(self.visit(expr, context))
+
+                if res.error:
+                    return res
+                return res.success(expr_value)
+            
+            
+        if node.else_case:
+            else_value = res.register(self.visit(node.else_case, context))
+            if res.error:
+                return res
+            return res.success(else_value)
+
+        return res.success(None)        
