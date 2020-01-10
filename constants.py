@@ -27,6 +27,10 @@ class Constants:
     TOK_KEYWORD='KEYWORD'
     TOK_EQUALS='EQUALS'
 
+    TOK_COMMA='COMMA'
+    TOK_ARROW='ARROW'
+
+
     LIST_KEYWORDS = [
         'var',
         'and',
@@ -40,6 +44,5 @@ class Constants:
         'while',
         'to',
         'step',
-
-
+        'func',
     ]

@@ -76,8 +76,7 @@ class Lexer:
                 tokens.append(Token(Constants.TOK_PLUS, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '-':
-                tokens.append(Token(Constants.TOK_MINUS, pos_start=self.pos))
-                self.advance()
+                tokens.append(self.gen_minus_or_arrow())
             elif self.current_char == '*':
                 tokens.append(Token(Constants.TOK_MULTIPLY, pos_start=self.pos))
                 self.advance()
@@ -104,6 +103,9 @@ class Lexer:
                 self.advance()
             elif self.current_char == ')':
                 tokens.append(Token(Constants.TOK_RPAREN, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == ',':
+                tokens.append(Token(Constants.TOK_COMMA, pos_start=self.pos))
                 self.advance()
             
 
@@ -200,3 +202,12 @@ class Lexer:
             tok_type = Constants.TOK_GTE
 
         return Token(tok_type, pos_start, self.pos)
+
+    def gen_minus_or_arrow(self):
+        tok_type = Constants.TOK_MINUS
+        pos_start = self.pos.copy()
+        self.advance()
+        if self.current_char == '>':
+            self.advance()
+            tok_type= Constants.TOK_ARROW
+        return Token(tok_type, pos_start = pos_start, pos_end= self.pos)
