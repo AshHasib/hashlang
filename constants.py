@@ -29,7 +29,11 @@ class Constants:
 
     TOK_COMMA='COMMA'
     TOK_ARROW='ARROW'
-
+    
+    
+    TOK_LSQUARE = 'LSQUARE'
+    TOK_RSQUARE = 'TOK_RSQUARE'
+    
 
     LIST_KEYWORDS = [
         'var',

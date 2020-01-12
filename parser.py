@@ -114,7 +114,12 @@ class CallNode:
 
 
 
-
+class ListNode:
+    def __init__(self, element_nodes, pos_start, pos_end):
+        self.element_nodes = element_nodes
+        self.pos_start= pos_start
+        self.pos_end = pos_end
+        super().__init__()
 
 
 class ParseResult:
@@ -206,6 +211,11 @@ class Parser:
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     'Expected \')\''
                 ))
+                
+        elif tok.type == Constants.TOK_LSQUARE:
+            list_expr = res.register(self.list_expr())
+            if res.error: return res
+            return res.success(list_expr)
 
         
         elif tok.matches(Constants.TOK_KEYWORD, 'if'):
@@ -649,3 +659,51 @@ class Parser:
 
         return res.success(FuncDefNode(var_name_tok, arg_name_toks, node_to_return))
             
+            
+    def list_expr(self):
+        res = ParseResult()
+        element_nodes = []
+        pos_start = self.current_tok.pos_start.copy()
+
+        if self.current_tok.type != Constants.TOK_LSQUARE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected '['"
+            ))
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == Constants.TOK_RSQUARE:
+            res.register_advancement()
+            self.advance()
+        else:
+            element_nodes.append(res.register(self.expr()))
+            if res.error:
+                return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected ']', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', '[' or 'NOT'"
+                ))
+
+            while self.current_tok.type == Constants.TOK_COMMA:
+                res.register_advancement()
+                self.advance()
+
+                element_nodes.append(res.register(self.expr()))
+                if res.error: return res
+
+            if self.current_tok.type != Constants.TOK_RSQUARE:
+                return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected ',' or ']'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+        return res.success(ListNode(
+        element_nodes,
+        pos_start,
+        self.current_tok.pos_end.copy()
+        ))
+        

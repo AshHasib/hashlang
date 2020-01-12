@@ -104,7 +104,6 @@ class Value:
         if not another:
             another = self
         return RTError(
-            error_name = 'Runtime Error',
             pos_start =self.pos_start, pos_end=self.pos_end,
             details= 'Illegal Operation',
             context = self.context
@@ -140,9 +139,8 @@ class Number(Value):
             if num.value == 0:
                 return None, RTError(
                     num.pos_start, num.pos_end,
-                    error_name='Runtime Error',
-                    details='Division by zero',
-                    context=self.context
+                    'Division by zero',
+                    self.context
                 )
             return Number(self.value/num.value).set_context(self.context), None
         else:
@@ -229,14 +227,12 @@ class Function(Value):
 
         if len(args)>len(self.arg_names):
             return res.failure(RTError(
-                'Runtime Error',
                 self.pos_start, self.pos_end,
                 f'{len(args) - len(self.arg_names)} more arguments passed into {self.name}',
                 self.context
             ))
         if len(args)<len(self.arg_names):
             return res.failure(RTError(
-                'Runtime Error',
                 self.pos_start, self.pos_end,
                 f'{len(self.arg_names) - len(args)} less arguments passed into {self.name}',
                 self.context
@@ -261,6 +257,72 @@ class Function(Value):
     def __repr__(self):
         return f'<func> {self.name}'
         
+
+
+
+class LinkedList(Value):
+    def __init__(self, elements):
+        super().__init__()
+        self.elements = elements
+
+    def added_to(self, other):
+        new_list = self.copy()
+        new_list.elements.append(other)
+        return new_list, None
+
+    def subtracted_by(self, other):
+        if isinstance(other, Number):
+            new_list = self.copy()
+            try:
+                new_list.elements.pop(other.value)
+                return new_list, None
+            except:
+                return None, RTError(
+                other.pos_start, other.pos_end,
+                'Element at this index could not be removed from list because index is out of bounds',
+                self.context
+                )
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def multiplied_by(self, other):
+        if isinstance(other, LinkedList):
+            new_list = self.copy()
+            new_list.elements.extend(other.elements)
+            return new_list, None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def divided_by(self, other):
+        if isinstance(other, Number):
+            try:
+                return self.elements[other.value], None
+            except:
+                return None, RTError(
+                other.pos_start, other.pos_end,
+                'Element at this index could not be retrieved from list because index is out of bounds',
+                self.context
+                )
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def copy(self):
+        copy = LinkedList(self.elements[:])
+        copy.set_pos(self.pos_start, self.pos_end)
+        copy.set_context(self.context)
+        return copy
+
+    def __repr__(self):
+        return f'[{", ".join([str(x) for x in self.elements])}]'
+
+
+
+
+
+
+
+
+
 
 class Interpreter:
     def visit(self, node, context):
@@ -347,9 +409,8 @@ class Interpreter:
             details = f"\'{var_name}\' is not defined"
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
-                error_name= 'Runtime Error',
-                details= details,
-                context=context
+                details,
+                context
             ))
         return res.success(value)
 
@@ -391,7 +452,7 @@ class Interpreter:
 
     def visit_ForNode(self, node, context):
         res = RuntimeResult()
-
+        elements = []
         start_value = res.register(self.visit(node.start_value_node, context))
         if res.error:
             return res
@@ -418,15 +479,15 @@ class Interpreter:
             context.symbol_table.set(node.var_name_tok.value, Number(i))
             i+=step_value.value
 
-            res.register(self.visit(node.body_node, context))
+            elements.append(res.register(self.visit(node.body_node, context)))
             if res.error:
                 return res
 
-        return res.success(None)
+        return res.success(LinkedList(elements).set_context(context).set_pos(node.pos_start, node.pos_end))
 
     def visit_WhileNode(self, node, context):
         res = RuntimeResult()
-
+        elements= []
         while True:
             condition = res.register(self.visit(node.condition_node, context))
             if res.error:
@@ -434,8 +495,8 @@ class Interpreter:
 
             if not condition.is_true():
                 break
-            res.register(self.visit(node.body_node, context))
-        return res.success(None)
+            elements.append(res.register(self.visit(node.body_node, context)))
+        return res.success(LinkedList(elements).set_context(context).set_pos(node.pos_start, node.pos_end))
 
 
     def visit_FuncDefNode(self, node, context):
@@ -471,3 +532,16 @@ class Interpreter:
             return res
 
         return res.success(return_value)
+    
+    
+    def visit_ListNode(self, node, context):
+        res = RuntimeResult()
+        elements = []
+
+        for element_node in node.element_nodes:
+            elements.append(res.register(self.visit(element_node, context)))
+            if res.error: return res
+
+        return res.success(
+            LinkedList(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
