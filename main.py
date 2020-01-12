@@ -2,23 +2,27 @@ from lexer import Lexer
 from parser import Parser
 from interpreter import Context, Interpreter, SymbolTable, Number
 from interpreter import BuiltInFunction
+
 global_symbol_table = SymbolTable()
 global_symbol_table.set('null', Number.null)
 global_symbol_table.set('true', Number.true)
 global_symbol_table.set('false', Number.false)
-global_symbol_table.set("output", BuiltInFunction.print)
-global_symbol_table.set("echo", BuiltInFunction.print_ret)
-global_symbol_table.set("getline", BuiltInFunction.input)
-global_symbol_table.set("getnum", BuiltInFunction.input_int)
-global_symbol_table.set("clear", BuiltInFunction.clear)
-#lobal_symbol_table.set("CLS", BuiltInFunction.clear)
-global_symbol_table.set("isnum", BuiltInFunction.is_number)
-global_symbol_table.set("isstr", BuiltInFunction.is_string)
-global_symbol_table.set("islist", BuiltInFunction.is_list)
-global_symbol_table.set("isfunc", BuiltInFunction.is_function)
-global_symbol_table.set("append", BuiltInFunction.append)
-global_symbol_table.set("pop", BuiltInFunction.pop)
-global_symbol_table.set("extend", BuiltInFunction.extend)
+global_symbol_table.set('output', BuiltInFunction.print)
+global_symbol_table.set('echo', BuiltInFunction.print_ret)
+global_symbol_table.set('getline', BuiltInFunction.input)
+global_symbol_table.set('getnum', BuiltInFunction.input_int)
+global_symbol_table.set('clear', BuiltInFunction.clear)
+global_symbol_table.set('isnum', BuiltInFunction.is_number)
+global_symbol_table.set('isstr', BuiltInFunction.is_string)
+global_symbol_table.set('islist', BuiltInFunction.is_list)
+global_symbol_table.set('isfunc', BuiltInFunction.is_function)
+global_symbol_table.set('append', BuiltInFunction.append)
+global_symbol_table.set('pop', BuiltInFunction.pop)
+global_symbol_table.set('extend', BuiltInFunction.extend)
+global_symbol_table.set('run', BuiltInFunction.run)
+global_symbol_table.set('length', BuiltInFunction.length)
+
+
 
 
 
@@ -51,6 +55,8 @@ def run(fname, text):
 def main():
     while True:
         text = input('hash/> ')
+        if text.strip() == '':
+            continue
         result, error = run('<stdin>',text)
 
         if error:

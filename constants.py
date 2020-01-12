@@ -30,7 +30,12 @@ class Constants:
     TOK_COMMA='COMMA'
     TOK_ARROW='ARROW'
     
+    TOK_RETURN = 'TOK_RETURN'
+    TOK_BREAK = 'TOK_BREAK'
+    TOK_CONTINUE = 'TOK_CONTINUE'
+    
     TOK_STRING = 'STRING'
+
     
     ESCAPE_CHARACTERS = {
         'n':'\n',
@@ -41,6 +46,7 @@ class Constants:
     TOK_LSQUARE = 'LSQUARE'
     TOK_RSQUARE = 'TOK_RSQUARE'
 
+    TOK_NEWLINE = 'NEWLINE'
 
     LIST_KEYWORDS = [
         'var',
@@ -56,4 +62,8 @@ class Constants:
         'to',
         'step',
         'func',
+        'end',
+        'return',
+        'continue',
+        'break'
     ]

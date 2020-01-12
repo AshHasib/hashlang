@@ -68,12 +68,20 @@ class Lexer:
 
             elif self.current_char in Constants.LETTERS:
                 tokens.append(self.gen_identifier())
+            
+            elif self.current_char in ';\n':
+                tokens.append(Token(Constants.TOK_NEWLINE, pos_start = self.pos))
+                self.advance()
 
             elif self.current_char in Constants.DIGITS:
                 tokens.append(self.gen_number())
 
             elif self.current_char == '"':
                 tokens.append(self.gen_string())
+            
+            elif self.current_char == '#':
+                self.skip()
+            
             
             elif self.current_char == '+':
                 tokens.append(Token(Constants.TOK_PLUS, pos_start=self.pos))
@@ -128,7 +136,14 @@ class Lexer:
         return tokens, None
 
 
+    def skip(self):
+        self.advance()
+        while self.current_char != '\n':
+            self.advance()
+        self.advance()
 
+
+        
     def gen_number(self):
         num_str = ''
         dot_count=0

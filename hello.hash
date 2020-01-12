@@ -1,0 +1,13 @@
+# Comment works as well!!!!!!
+
+output("HEllo World")
+
+for i = 0 to 5 then
+    output("I am so happy")
+end
+
+
+func greet(message) -> message + " welcome!!!"
+
+
+output(greet("Hasib"))

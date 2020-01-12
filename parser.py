@@ -70,35 +70,35 @@ class IfNode:
         self.else_case = else_case
 
         self.pos_start = self.cases[0][0].pos_start
-        self.pos_end = (self.else_case or self.cases[len(self.cases) - 1][0]).pos_end
+        self.pos_end = (self.else_case or self.cases[len(self.cases) - 1])[0].pos_end
 
 
 class ForNode:
-    def __init__(self, var_name_tok, start_value_node, end_value_node, step_value_node, body_node):
+    def __init__(self, var_name_tok, start_value_node, end_value_node, step_value_node, body_node, should_return_null):
         self.var_name_tok = var_name_tok
         self.start_value_node = start_value_node
         self.end_value_node = end_value_node
         self.step_value_node = step_value_node
         self.body_node = body_node
-
+        self.should_return_null=should_return_null
         self.pos_start= self.var_name_tok.pos_start
         self.pos_end = self.var_name_tok.pos_end
 
 class WhileNode:
-    def __init__(self, condition_node, body_node):
+    def __init__(self, condition_node, body_node, should_return_null):
         self.condition_node = condition_node
         self.body_node = body_node
-
+        self.should_return_null=should_return_null
         self.pos_start= self.condition_node.pos_start
         self.pos_end = self.body_node.pos_end
 
 
 class FuncDefNode:
-    def __init__(self, var_name_tok, arg_name_toks, body_node):
+    def __init__(self, var_name_tok, arg_name_toks, body_node, should_auto_return):
         self.var_name_tok = var_name_tok
         self.arg_name_toks=  arg_name_toks
         self.body_node = body_node
-
+        self.should_auto_return=should_auto_return
         if self.var_name_tok:
             self.pos_start = self.var_name_tok.pos_start
         elif len(self.arg_name_toks)>0:
@@ -133,33 +133,69 @@ class ListNode:
         super().__init__()
 
 
+class ReturnNode:
+    def __init__(self, node_to_return, pos_start, pos_end):
+        self.node_to_return = node_to_return
+
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class ContinueNode:
+    def __init__(self, pos_start, pos_end):
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class BreakNode:
+    def __init__(self, pos_start, pos_end):
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class ParseResult:
     def __init__(self):
         self.error = None
         self.node = None
-        self.advance_count=0
+        self.last_registered_advance_count = 0
+        self.advance_count = 0
+        self.to_reverse_count = 0
 
     def register_advancement(self):
-        self.advance_count+=1
+        self.last_registered_advance_count = 1
+        self.advance_count += 1
 
     def register(self, res):
-        self.advance_count+=res.advance_count
+        self.last_registered_advance_count = res.advance_count
+        self.advance_count += res.advance_count
         if res.error:
-            self.error=res.error
+            self.error = res.error
         return res.node
+    
+    def try_register(self, res):
+        if res.error:
+            self.to_reverse_count = res.advance_count
+            return None
+        return self.register(res)
 
     def success(self, node):
         self.node = node
         return self
 
     def failure(self, error):
-        if not self.error or self.advance_count==0:
+        if not self.error or self.last_registered_advance_count == 0:
             self.error = error
         return self
-
-
-
-
 
 
 
@@ -178,9 +214,17 @@ class Parser:
             self.current_tok = self.tokens[self.tok_idx]
         return self.current_tok
 
+    def reverse(self, amount = 1):
+        self.tok_idx -= amount
+        self.update_current_tok()
+        return self.current_tok
+    
+    def update_current_tok(self):
+        if self.tok_idx >= 0 and self.tok_idx < len(self.tokens):
+            self.current_tok = self.tokens[self.tok_idx]
 
     def parse(self):
-        res = self.expr()
+        res = self.statements()
 
         if not res.error and self.current_tok.type!=Constants.TOK_EOF:
             return res.failure(InvalidSyntaxError(
@@ -188,7 +232,82 @@ class Parser:
                 'Expected +, -, * or /'
             ))
         return res
+    
+    
+    def statement(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
 
+        if self.current_tok.matches(Constants.TOK_KEYWORD, 'return'):
+            res.register_advancement()
+            self.advance()
+
+            expr = res.try_register(self.expr())
+            if not expr:
+                self.reverse(res.to_reverse_count)
+            return res.success(ReturnNode(expr, pos_start, self.current_tok.pos_start.copy()))
+        
+        if self.current_tok.matches(Constants.TOK_KEYWORD, 'continue'):
+            res.register_advancement()
+            self.advance()
+            return res.success(ContinueNode(pos_start, self.current_tok.pos_start.copy()))
+        
+        if self.current_tok.matches(Constants.TOK_KEYWORD, 'break'):
+            res.register_advancement()
+            self.advance()
+            return res.success(BreakNode(pos_start, self.current_tok.pos_start.copy()))
+
+        expr = res.register(self.expr())
+        if res.error:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected 'return', 'continue', 'break', 'var', identifier, '+', '-', '(', '[' or 'not'"
+            ))
+        return res.success(expr)
+        
+    
+    def statements(self):
+        res = ParseResult()
+        statements = []
+        pos_start = self.current_tok.pos_start.copy()
+
+        while self.current_tok.type == Constants.TOK_NEWLINE:
+            res.register_advancement()
+            self.advance()
+
+        statement = res.register(self.statement())
+        if res.error:
+            return res
+        statements.append(statement)
+
+        more_statements = True
+
+        while True:
+            newline_count = 0
+            while self.current_tok.type == Constants.TOK_NEWLINE:
+                res.register_advancement()
+                self.advance()
+                newline_count += 1
+            if newline_count == 0:
+                more_statements = False
+        
+            if not more_statements:
+                break
+            statement = res.try_register(self.statement())
+            
+            if not statement:
+                self.reverse(res.to_reverse_count)
+                more_statements = False
+                continue
+            statements.append(statement)
+
+        return res.success(ListNode(
+            statements,
+            pos_start,
+            self.current_tok.pos_end.copy()
+            ))
+    
+    
     def atom(self):
         res= ParseResult()
         tok = self.current_tok
@@ -428,65 +547,140 @@ class Parser:
         return res.success(leftn)
 
 
+    
     def if_expr(self):
-	    res = ParseResult()
-	    cases = []
-	    else_case = None
+        res = ParseResult()
+        all_cases = res.register(self.if_expr_cases('if'))
+        if res.error:
+            return res
+        cases, else_case = all_cases
+        return res.success(IfNode(cases, else_case))
+    
+    
 
-	    if not self.current_tok.matches(Constants.TOK_KEYWORD, 'if'):
-	    	return res.failure(InvalidSyntaxError(
-				self.current_tok.pos_start, self.current_tok.pos_end,
-				f"Expected 'if'"
-			))
+    def if_expr_b(self):
+        return self.if_expr_cases('elseif')
+        
+    def if_expr_c(self):
+        res = ParseResult()
+        else_case = None
 
-	    res.register_advancement()
-	    self.advance()
+        if self.current_tok.matches(Constants.TOK_KEYWORD, 'else'):
+            res.register_advancement()
+            self.advance()
 
-	    condition = res.register(self.expr())
-	    if res.error: return res
+            if self.current_tok.type == Constants.TOK_NEWLINE:
+                res.register_advancement()
+                self.advance()
 
-	    if not self.current_tok.matches(Constants.TOK_KEYWORD, 'then'):
-        	return res.failure(InvalidSyntaxError(
-	    		self.current_tok.pos_start, self.current_tok.pos_end,
-	    		f"Expected 'then'"
-	    	))
+                statements = res.register(self.statements())
+                if res.error:
+                    return res
+                else_case = (statements, True)
 
-	    res.register_advancement()
-	    self.advance()
+                if self.current_tok.matches(Constants.TOK_KEYWORD, 'end'):
+                    res.register_advancement()
+                    self.advance()
+                else:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Expected 'end'"
+                    ))
+            else:
+                expr = res.register(self.statement())
+                if res.error:
+                    return res
+                else_case = (expr, False)
 
-	    expr = res.register(self.expr())
-	    if res.error: return res
-	    cases.append((condition, expr))
+        return res.success(else_case)
 
-	    while self.current_tok.matches(Constants.TOK_KEYWORD, 'elseif'):
-	    	res.register_advancement()
-	    	self.advance()
+    
+    
+    def if_expr_b_or_c(self):
+        res = ParseResult()
+        cases, else_case = [], None
 
-	    	condition = res.register(self.expr())
-	    	if res.error: return res
+        if self.current_tok.matches(Constants.TOK_KEYWORD, 'elseif'):
+            all_cases = res.register(self.if_expr_b())
+            if res.error:
+                return res
+            cases, else_case = all_cases
+        else:
+            else_case = res.register(self.if_expr_c())
+            if res.error:
+                return res
+        
+        return res.success((cases, else_case))
 
-	    	if not self.current_tok.matches(Constants.TOK_KEYWORD, 'then'):
-	    		return res.failure(InvalidSyntaxError(
-	    			self.current_tok.pos_start, self.current_tok.pos_end,
-	    			f"Expected 'then'"
-	    		))
+    def if_expr_cases(self, case_keyword):
+        res = ParseResult()
+        cases = []
+        else_case = None
 
-	    	res.register_advancement()
-	    	self.advance()
+        if not self.current_tok.matches(Constants.TOK_KEYWORD, case_keyword):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected '{case_keyword}'"
+            ))
 
-	    	expr = res.register(self.expr())
-	    	if res.error: return res
-	    	cases.append((condition, expr))
+        res.register_advancement()
+        self.advance()
 
-	    if self.current_tok.matches(Constants.TOK_KEYWORD, 'else'):
-	    	res.register_advancement()
-	    	self.advance()
+        condition = res.register(self.expr())
+        if res.error:
+            return res
 
-	    	else_case = res.register(self.expr())
-	    	if res.error: return res
+        if not self.current_tok.matches(Constants.TOK_KEYWORD, 'then'):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected 'then'"
+            ))
 
-	    return res.success(IfNode(cases, else_case))
+        res.register_advancement()
+        self.advance()
 
+        if self.current_tok.type == Constants.TOK_NEWLINE:
+            res.register_advancement()
+            self.advance()
+
+            statements = res.register(self.statements())
+            if res.error:
+                return res
+            cases.append((condition, statements, True))
+
+            if self.current_tok.matches(Constants.TOK_KEYWORD, 'end'):
+                res.register_advancement()
+                self.advance()
+            else:
+                all_cases = res.register(self.if_expr_b_or_c())
+                if res.error:
+                    return res
+                new_cases, else_case = all_cases
+                cases.extend(new_cases)
+        else:
+            expr = res.register(self.statement())
+            if res.error:
+                return res
+            cases.append((condition, expr, False))
+
+            all_cases = res.register(self.if_expr_b_or_c())
+            if res.error: return res
+            new_cases, else_case = all_cases
+            cases.extend(new_cases)
+
+        return res.success((cases, else_case))
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 
     def for_expr(self):
@@ -557,11 +751,29 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        body = res.register(self.expr())
-        if res.error:
-            return res
+        if self.current_tok.type == Constants.TOK_NEWLINE:
+            res.register_advancement()
+            self.advance()
 
-        return res.success(ForNode(var_name, start_value, end_value, step_value, body))
+            body = res.register(self.statements())
+            if res.error:
+                return res
+
+            if not self.current_tok.matches(Constants.TOK_KEYWORD, 'end'):
+                return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected 'end'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+            return res.success(ForNode(var_name, start_value, end_value, step_value, body, True))
+            
+        body = res.register(self.statement())
+        if res.error: return res
+
+        return res.success(ForNode(var_name, start_value, end_value, step_value, body, False))
 
     
     def while_expr(self):
@@ -587,11 +799,33 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        body = res.register(self.expr())
+
+        if self.current_tok.type == Constants.TOK_NEWLINE:
+            res.register_advancement()
+            self.advance()
+
+            body = res.register(self.statements())
+            if res.error: return res
+
+            if not self.current_tok.matches(Constants.TOK_KEYWORD, 'END'):
+                return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected 'end'"
+                ))
+
+            res.register_advancement()
+            self.advance()
+
+            return res.success(WhileNode(condition, body, True))
+        
+
+
+
+        body = res.register(self.statement())
         if res.error:
             return res
 
-        return res.success(WhileNode(condition, body))
+        return res.success(WhileNode(condition, body, False))
 
 
     
@@ -661,19 +895,54 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        if self.current_tok.type != Constants.TOK_ARROW:
+        if self.current_tok.type == Constants.TOK_ARROW:
+            res.register_advancement()
+            self.advance()
+            body = res.register(self.expr())
+            if res.error:
+                return res
+            return res.success(FuncDefNode(var_name_tok, arg_name_toks, body, True))
+        
+        
+        
+        if self.current_tok.type != Constants.TOK_NEWLINE:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_start, self.current_tok.pos_end,
-                'Expected \'->\''
+                f"Expected '->' or NEWLINE"
             ))
+
         res.register_advancement()
         self.advance()
 
-        node_to_return = res.register(self.expr())
+        body = res.register(self.statements())
         if res.error:
             return res
 
-        return res.success(FuncDefNode(var_name_tok, arg_name_toks, node_to_return))
+        if not self.current_tok.matches(Constants.TOK_KEYWORD, 'end'):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected 'end'"
+            ))
+
+        res.register_advancement()
+        self.advance()
+        
+        return res.success(FuncDefNode(
+            var_name_tok,
+            arg_name_toks,
+            body,
+            False
+        ))
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
             
             
     def list_expr(self):
