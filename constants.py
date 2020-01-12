@@ -30,10 +30,17 @@ class Constants:
     TOK_COMMA='COMMA'
     TOK_ARROW='ARROW'
     
+    TOK_STRING = 'STRING'
+    
+    ESCAPE_CHARACTERS = {
+        'n':'\n',
+        't':'\t'
+    }
+    
     
     TOK_LSQUARE = 'LSQUARE'
     TOK_RSQUARE = 'TOK_RSQUARE'
-    
+
 
     LIST_KEYWORDS = [
         'var',

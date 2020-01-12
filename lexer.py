@@ -71,7 +71,10 @@ class Lexer:
 
             elif self.current_char in Constants.DIGITS:
                 tokens.append(self.gen_number())
-        
+
+            elif self.current_char == '"':
+                tokens.append(self.gen_string())
+            
             elif self.current_char == '+':
                 tokens.append(Token(Constants.TOK_PLUS, pos_start=self.pos))
                 self.advance()
@@ -217,3 +220,24 @@ class Lexer:
             self.advance()
             tok_type= Constants.TOK_ARROW
         return Token(tok_type, pos_start = pos_start, pos_end= self.pos)
+    
+    
+    def gen_string(self):
+        string = ''
+        pos_start = self.pos.copy()
+        escape_character = False
+        self.advance()
+
+        while self.current_char != None and (self.current_char != '"' or escape_character):
+            if escape_character:
+                string += Constants.ESCAPE_CHARACTERS.get(self.current_char, self.current_char)
+            else:
+                if self.current_char == '\\':
+                    escape_character = True
+                else:
+                    string += self.current_char
+            self.advance()
+            escape_character = False
+        
+        self.advance()
+        return Token(Constants.TOK_STRING, string, pos_start, self.pos)

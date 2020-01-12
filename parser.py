@@ -10,6 +10,17 @@ class NumberNode:
 
     def __repr__(self):
         return f'{self.tok}'
+    
+    
+class StringNode:
+    def __init__(self, tok):
+        self.tok = tok
+
+        self.pos_start=self.tok.pos_start
+        self.pos_end=self.tok.pos_end
+
+    def __repr__(self):
+        return f'{self.tok}'
 
 class BinaryOperatorNode:
     def __init__(self, left_node, operator, right_node):
@@ -192,6 +203,11 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(NumberNode(tok))
+        
+        elif tok.type == Constants.TOK_STRING:
+            res.register_advancement()
+            self.advance()
+            return res.success(StringNode(tok))
 
         
 
